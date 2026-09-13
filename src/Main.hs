@@ -221,8 +221,8 @@ data Action
   | ActionToggleSidebar
 ----------------------------------------------------------------------
 -- | View
-handleView :: context -> props -> Model -> View context Model Action
-handleView _ _ model = div_ [ class_ "app" ]
+handleView :: Model -> View context props Model Action
+handleView model = div_ [ class_ "app" ]
   [ viewTopbar model
   , case model ^. modelCurrent of
       Nothing  -> viewHome model
@@ -235,7 +235,7 @@ handleView _ _ model = div_ [ class_ "app" ]
       | model ^. modelSidebar = "shell drawer"
       | otherwise = "shell drawer rail-closed"
 ----------------------------------------------------------------------
-viewTopbar :: Model -> View context Model Action
+viewTopbar :: Model -> View context props Model Action
 viewTopbar model = header_ [ class_ "topbar" ]
   [ div_ [ class_ "topbar-side" ]
     [ button_ [ class_ "icon-btn", title_ "Toggle sidebar", onClick ActionToggleSidebar ] [ "☰" ]
@@ -262,7 +262,7 @@ viewTopbar model = header_ [ class_ "topbar" ]
     ]
   ]
 ----------------------------------------------------------------------
-viewHome :: Model -> View context Model Action
+viewHome :: Model -> View context props Model Action
 viewHome model = div_ [ class_ shellClass ]
   [ viewSidebar model
   , viewScrim
@@ -297,7 +297,7 @@ viewHome model = div_ [ class_ shellClass ]
       _ -> ""
 ----------------------------------------------------------------------
 -- | Channel page header shown when browsing one channel's uploads
-viewChannelHeader :: Model -> MS.MisoString -> View context Model Action
+viewChannelHeader :: Model -> MS.MisoString -> View context props Model Action
 viewChannelHeader model ch = div_ [ class_ "chan-header" ]
   [ viewAvatar "avatar xl" ch
   , div_ [ class_ "chan-text" ]
@@ -336,10 +336,10 @@ visibleVideos model = case model ^. modelFeed of
 ----------------------------------------------------------------------
 -- | Backdrop behind the sidebar when it floats as a drawer (watch
 -- page, phones); tapping it closes the drawer
-viewScrim :: View context Model Action
+viewScrim :: View context props Model Action
 viewScrim = div_ [ class_ "scrim", onClick (ActionSetSidebar False) ] []
 ----------------------------------------------------------------------
-viewSidebar :: Model -> View context Model Action
+viewSidebar :: Model -> View context props Model Action
 viewSidebar model = nav_ [ class_ "rail" ]
   [ railItem (feed == FeedHome) "🏠" "Home" (ActionFeed FeedHome)
   , railItem (feed == FeedShorts) "🎞" "Shorts" (ActionFeed FeedShorts)
@@ -365,7 +365,7 @@ viewSidebar model = nav_ [ class_ "rail" ]
       ]
       [ viewAvatar "avatar sm" ch, text ch ]
 ----------------------------------------------------------------------
-viewChips :: Model -> View context Model Action
+viewChips :: Model -> View context props Model Action
 viewChips model = div_ [ class_ "chips" ] (chip <$> cats)
   where
     cats = "All" : nub [ v ^. videoCategory | v <- Map.elems (model ^. modelVideos) ]
@@ -375,7 +375,7 @@ viewChips model = div_ [ class_ "chips" ] (chip <$> cats)
       ]
       [ text cat ]
 ----------------------------------------------------------------------
-viewCard :: Model -> (VideoId, Video) -> View context Model Action
+viewCard :: Model -> (VideoId, Video) -> View context props Model Action
 viewCard model (vid, v) = div_ [ class_ "card", onClick (ActionOpen vid) ]
   [ viewThumb "thumb" (vid `Set.member` (model ^. modelThumbSound)) vid v
   , div_ [ class_ "card-meta" ]
@@ -393,7 +393,7 @@ viewCard model (vid, v) = div_ [ class_ "card", onClick (ActionOpen vid) ]
 -- Hover is tracked on this wrapper (not the video) with
 -- mouseenter\/mouseleave so moving onto the speaker button doesn't
 -- read as leaving the thumbnail and reset the preview.
-viewThumb :: MisoString -> Bool -> VideoId -> Video -> View context Model Action
+viewThumb :: MisoString -> Bool -> VideoId -> Video -> View context props Model Action
 viewThumb cls soundOn vid v = div_
   [ class_ cls
   , onMouseEnter (ActionHover (Just vid))
@@ -412,7 +412,7 @@ viewThumb cls soundOn vid v = div_
 -- | The preview video itself: the media fragment picks the poster
 -- frame, metadata gives us the true duration, and hovering plays it
 -- (muted by default, or with sound once the speaker button is on).
-viewThumbVideo :: Bool -> VideoId -> Video -> View context Model Action
+viewThumbVideo :: Bool -> VideoId -> Video -> View context props Model Action
 viewThumbVideo soundOn vid v = video_
   [ id_ (thumbDomId vid)
   , src_ (v ^. videoSrc <> "#t=" <> ms (v ^. videoThumbT))
@@ -424,14 +424,14 @@ viewThumbVideo soundOn vid v = video_
   ]
   []
 ----------------------------------------------------------------------
-viewAvatar :: MisoString -> MisoString -> View context Model Action
+viewAvatar :: MisoString -> MisoString -> View context props Model Action
 viewAvatar cls ch = span_
   [ class_ cls
   , C.style_ [ C.backgroundColor (channelColor ch) ]
   ]
   [ text (MS.take 1 ch) ]
 ----------------------------------------------------------------------
-viewWatch :: Model -> VideoId -> View context Model Action
+viewWatch :: Model -> VideoId -> View context props Model Action
 viewWatch model vid = case (model ^. modelVideos) !? vid of
   Nothing -> viewHome model
   Just v -> div_ [ class_ watchClass ]
@@ -452,7 +452,7 @@ viewWatch model vid = case (model ^. modelVideos) !? vid of
     others =
       [ kv | kv@(k, _) <- Map.toList (model ^. modelVideos), k /= vid ]
 ----------------------------------------------------------------------
-viewPlayer :: Model -> VideoId -> Video -> View context Model Action
+viewPlayer :: Model -> VideoId -> Video -> View context props Model Action
 viewPlayer model vid v = div_ [ id_ "player-shell", class_ shellClass ]
   [ video_
     [ id_ "player"
@@ -525,7 +525,7 @@ viewPlayer model vid v = div_ [ id_ "player-shell", class_ shellClass ]
 -- in the middle, arrow-key skips as "5s" bubbles on the sides. The
 -- animation-name alternates with the flash counter so a repeated
 -- action restarts the fade-out even though the DOM node is reused.
-viewFlash :: Maybe (Int, Flash) -> View context Model Action
+viewFlash :: Maybe (Int, Flash) -> View context props Model Action
 viewFlash Nothing = text ""
 viewFlash (Just (n, f)) = div_
   [ class_ (MS.unwords (["flash"] <> side <> [parity])) ]
@@ -548,7 +548,7 @@ sliderFill filled track val total = "background" =: mconcat
   where
     pct = if total <= 0 then "0" else ms (100 * val / total)
 ----------------------------------------------------------------------
-viewChannelRow :: Model -> VideoId -> Video -> View context Model Action
+viewChannelRow :: Model -> VideoId -> Video -> View context props Model Action
 viewChannelRow model vid v = div_ [ class_ "chanrow" ]
   [ viewAvatar "avatar lg" ch
   , div_ [ class_ "chan-text" ]
@@ -579,7 +579,7 @@ viewChannelRow model vid v = div_ [ class_ "chanrow" ]
     rating = (model ^. modelRatings) !? vid
     likes = v ^. videoLikes + (if rating == Just Liked then 1 else 0)
 ----------------------------------------------------------------------
-viewSubscribe :: Model -> MS.MisoString -> View context Model Action
+viewSubscribe :: Model -> MS.MisoString -> View context props Model Action
 viewSubscribe model ch = button_
   [ class_ (if subscribed then "subscribe subscribed" else "subscribe")
   , onClick (ActionSubscribe ch)
@@ -588,7 +588,7 @@ viewSubscribe model ch = button_
   where
     subscribed = ch `Set.member` (model ^. modelSubs)
 ----------------------------------------------------------------------
-viewDescription :: Model -> Video -> View context Model Action
+viewDescription :: Model -> Video -> View context props Model Action
 viewDescription model v = div_ [ class_ "desc" ]
   [ p_ [ class_ "desc-stats" ] [ text (fmtViews v <> " • " <> v ^. videoAge) ]
   , p_ [] [ text techLine ]
@@ -617,7 +617,7 @@ viewDescription model v = div_ [ class_ "desc" ]
 ----------------------------------------------------------------------
 -- | Comment section: baked-in comments per video plus whatever the
 -- viewer posts this session
-viewComments :: Model -> VideoId -> View context Model Action
+viewComments :: Model -> VideoId -> View context props Model Action
 viewComments model vid = div_ [ class_ "comments" ] $
   [ span_ [ class_ "comments-head" ]
       [ text (ms (length cs) <> " Comments") ]
@@ -672,7 +672,7 @@ viewComments model vid = div_ [ class_ "comments" ] $
           | c ^. commentVote == Just r = "cvote active"
           | otherwise = "cvote"
 ----------------------------------------------------------------------
-upnextRow :: Model -> (VideoId, Video) -> View context Model Action
+upnextRow :: Model -> (VideoId, Video) -> View context props Model Action
 upnextRow model (vid, v) = div_ [ class_ "up-row", onClick (ActionOpen vid) ]
   [ viewThumb "up-thumb" (vid `Set.member` (model ^. modelThumbSound)) vid v
   , div_ [ class_ "up-text" ]
